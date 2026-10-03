@@ -1,0 +1,974 @@
+<!doctype html>
+<html lang="he">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="צפרדע מטפסת">
+<meta name="theme-color" content="#10252b">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icon-180.png">
+<link rel="icon" href="icon-192.png">
+<style>
+html { box-sizing: border-box; padding-top: env(safe-area-inset-top, 0px); padding-bottom: env(safe-area-inset-bottom, 0px); background: #10252b; }
+[hidden] { display: none !important; }
+</style>
+<title>צפרדע מטפסת</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Heebo:wght@400;600;800&family=Secular+One&display=swap">
+<style>
+/* Layout: one portrait 3:5 board centered, HUD chips over it, two wide hold-to-charge buttons underneath that fill up as you charge. Sky shifts from pond-night to dawn as the frog climbs. */
+:root {
+  --ink: #10252b;
+  --panel: #1b3d45;
+  --panel-edge: #0b1b20;
+  --text: #eef3e6;
+  --muted: #a3bbb4;
+  --chip: rgba(16, 37, 43, 0.66);
+  --veil: rgba(16, 37, 43, 0.74);
+  --accent: #ffc857;
+  --accent-ink: #2a1e00;
+  --accent-edge: #b4852a;
+  --frog: #8fd14f;
+  --frog-dark: #3f7a25;
+  --belly: #e3f2b9;
+  --frog2: #5fc4e6;
+  --frog2-dark: #226f8d;
+  --belly2: #d9f1fb;
+  --eye: #f6faee;
+  --pupil: #10252b;
+  --stone: #8a7869;
+  --stone-dark: #5d4e43;
+  --moss: #69a843;
+  --rocket: #f0ece1;
+  --rocket-red: #e2573f;
+  --rocket-window: #3d8fa3;
+  --flame: #ff9f2e;
+  --flame-core: #fff0a8;
+  --sky-night-top: #12303a;
+  --sky-night-bottom: #27615f;
+  --sky-dawn-top: #ee9f6c;
+  --sky-dawn-bottom: #fbe1a9;
+  --orb-night: #e6efdd;
+  --orb-dawn: #ffd27a;
+  --font-display: "Secular One", "Heebo", system-ui, sans-serif;
+  --font-body: "Heebo", system-ui, sans-serif;
+  color-scheme: dark;
+}
+
+html, body { height: 100%; }
+body {
+  margin: 0;
+  background: var(--ink);
+  color: var(--text);
+  font-family: var(--font-body);
+  font-size: 16px;
+  overflow: hidden;
+  overscroll-behavior: none;
+}
+.app {
+  height: 100%;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding-block: 12px;
+  padding-inline: 16px;
+  max-width: 560px;
+  margin-inline: auto;
+}
+.stage {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.board {
+  position: relative;
+  overflow: hidden;
+  border-radius: 14px;
+  box-shadow: 0 0 0 2px var(--panel-edge);
+  container-type: size;
+  background: var(--panel);
+}
+canvas { display: block; width: 100%; height: 100%; }
+
+.hud {
+  position: absolute;
+  inset: 0 0 auto 0;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  padding: 10px 12px;
+  pointer-events: none;
+}
+.stats { display: flex; flex-direction: column; gap: 6px; align-items: flex-start; }
+.chip {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
+  background: var(--chip);
+  color: var(--text);
+  border-radius: 10px;
+  padding: 6px 11px;
+  font-family: var(--font-display);
+  line-height: 1;
+}
+.chip.big { font-size: 22px; }
+.chip.big b { font-weight: 400; font-size: 28px; font-variant-numeric: tabular-nums; }
+.chip.small { font-size: 14px; color: var(--muted); }
+.chip.small b { font-weight: 400; color: var(--text); font-variant-numeric: tabular-nums; }
+.dot { width: 10px; height: 10px; border-radius: 50%; align-self: center; flex: none; }
+.dot.d1 { background: var(--frog); }
+.dot.d2 { background: var(--frog2); }
+.tog {
+  pointer-events: auto;
+  border: 0;
+  cursor: pointer;
+  font-size: 14px;
+  color: var(--muted);
+  padding: 8px 12px;
+}
+.tog[aria-pressed="true"] { color: var(--accent-ink); background: var(--accent); }
+
+.overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  padding: 24px;
+  text-align: center;
+  background: var(--veil);
+  overflow-y: auto;
+}
+.overlay > :first-child { margin-top: auto; }
+.overlay > :last-child { margin-bottom: auto; }
+.overlay h1 {
+  margin: 0;
+  font-family: var(--font-display);
+  font-weight: 400;
+  font-size: clamp(30px, 13cqw, 48px);
+  line-height: 1.1;
+  text-wrap: balance;
+}
+.overlay p {
+  margin: 0;
+  max-width: 30ch;
+  font-size: clamp(13px, 4.4cqw, 17px);
+  line-height: 1.5;
+  color: var(--muted);
+  text-wrap: balance;
+}
+.btns { display: flex; flex-direction: column; gap: 12px; width: min(100%, 240px); }
+.primary {
+  border: 0;
+  cursor: pointer;
+  width: 100%;
+  background: var(--accent);
+  color: var(--accent-ink);
+  font-family: var(--font-display);
+  font-size: 21px;
+  padding: 12px 20px;
+  border-radius: 14px;
+  box-shadow: 0 5px 0 var(--accent-edge);
+}
+.primary.alt {
+  background: var(--panel);
+  color: var(--text);
+  box-shadow: 0 5px 0 var(--panel-edge);
+}
+.primary:active { transform: translateY(3px); }
+.primary:active { box-shadow: 0 2px 0 var(--accent-edge); }
+.primary.alt:active { box-shadow: 0 2px 0 var(--panel-edge); }
+
+.controls {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  direction: ltr;
+}
+.jump {
+  position: relative;
+  overflow: hidden;
+  height: 84px;
+  min-width: 0;
+  border: 0;
+  border-radius: 18px;
+  background: var(--panel);
+  color: var(--text);
+  font-family: var(--font-display);
+  font-size: 22px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  box-shadow: 0 5px 0 var(--panel-edge);
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+  -webkit-tap-highlight-color: transparent;
+  text-shadow: 0 1px 0 var(--panel-edge);
+}
+.jump.p1 { --pc: var(--frog); }
+.jump.p2 { --pc: var(--frog2); }
+.jump::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: var(--pc, var(--accent));
+  opacity: 0.5;
+  transform: scaleY(var(--p, 0));
+  transform-origin: bottom;
+}
+.jump.p1::after, .jump.p2::after {
+  content: "";
+  position: absolute;
+  left: 0; right: 0; top: 0;
+  height: 6px;
+  background: var(--pc);
+}
+.jump > * { position: relative; }
+.jump > .who {
+  position: absolute;
+  top: 12px; left: 0; right: 0;
+  text-align: center;
+  font-family: var(--font-body);
+  font-weight: 600;
+  font-size: 12px;
+  color: var(--muted);
+  text-shadow: none;
+}
+.jump .chev { width: 24px; height: 24px; flex: none; }
+.jump .chev.flip { transform: scaleX(-1); }
+.jump.on { transform: translateY(3px); box-shadow: 0 2px 0 var(--panel-edge); }
+
+.jump:focus-visible, .primary:focus-visible, .tog:focus-visible {
+  outline: 3px solid var(--accent);
+  outline-offset: 3px;
+}
+</style>
+
+<div class="app" dir="rtl" lang="he">
+  <div class="stage" id="stage">
+    <div class="board" id="board">
+      <canvas id="cv" role="img" aria-label="לוח המשחק"></canvas>
+      <div class="hud">
+        <div class="stats">
+          <div class="chip big"><i class="dot d1" id="d1" hidden></i><span id="l1">גובה</span><b id="s1">0</b><span>מ׳</span></div>
+          <div class="chip big" id="c2" hidden><i class="dot d2"></i><span>ימין</span><b id="s2">0</b><span>מ׳</span></div>
+          <div class="chip small" id="cb"><span>שיא</span><b id="best">0</b><span>מ׳</span></div>
+        </div>
+        <button class="chip tog" id="aim" type="button" aria-pressed="true">קו עזר</button>
+      </div>
+      <div class="overlay" id="ov">
+        <h1 id="ovTitle">צפרדע מטפסת</h1>
+        <p id="ovText"></p>
+        <div class="btns">
+          <button class="primary" id="b1p" type="button">שחקן אחד</button>
+          <button class="primary alt" id="b2p" type="button">שני שחקנים</button>
+          <button class="primary" id="bAgain" type="button" hidden>עוד פעם</button>
+          <button class="primary alt" id="bMenu" type="button" hidden>חזרה לתפריט</button>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="controls" id="controls">
+    <button class="jump" id="bL" type="button">
+      <span class="who" hidden></span>
+      <svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 5l7 7-7 7"/></svg>
+      <span class="lbl">שמאלה</span>
+    </button>
+    <button class="jump" id="bR" type="button">
+      <span class="who" hidden></span>
+      <svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 5l7 7-7 7"/></svg>
+      <span class="lbl">ימינה</span>
+    </button>
+  </div>
+</div>
+
+<script>
+(() => {
+  // ---- constants (world units are px; world y grows downward, ground top is y = 0) ----
+  const W = 360, H = 600;
+  const G = 1800;                                  // gravity px/s^2
+  const ANGLE = 20 * Math.PI / 180;                // fixed jump angle from vertical
+  const SIN = Math.sin(ANGLE), COS = Math.cos(ANGLE);
+  const V_MIN = 330, V_MAX = 760;                  // jump speed at zero / full charge
+  const CHARGE_MAX = 0.8;                          // seconds of holding for a full jump
+  const PX_PER_M = 40;
+  const TAU = Math.PI * 2;
+  const START_CAM = -500;
+  const PAIR_EVERY = 20;                           // every 20th level offers a rocket platform
+  const ROCKET_LEVELS = 10;                        // the rocket carries you this many levels up
+  const RK_H = 42;                                 // rocket height
+  const RK_SIT = 38;                               // frog feet sit this far above the rocket base
+  const OFFS = [0, W, -W];
+  const wrapX = v => ((v % W) + W) % W;
+
+  // ---- design tokens from CSS ----
+  const cs = getComputedStyle(document.documentElement);
+  const tok = n => cs.getPropertyValue(n).trim();
+  const hex = c => { c = c.replace('#', ''); const n = parseInt(c, 16); return [(n >> 16) & 255, (n >> 8) & 255, n & 255]; };
+  const mix = (a, b, t) => a.map((v, i) => Math.round(v + (b[i] - v) * t));
+  const rgb = a => 'rgb(' + a[0] + ',' + a[1] + ',' + a[2] + ')';
+  const rgba = (a, al) => 'rgba(' + a[0] + ',' + a[1] + ',' + a[2] + ',' + al + ')';
+  const C = {
+    nightTop: hex(tok('--sky-night-top')), nightBot: hex(tok('--sky-night-bottom')),
+    dawnTop: hex(tok('--sky-dawn-top')), dawnBot: hex(tok('--sky-dawn-bottom')),
+    orbNight: hex(tok('--orb-night')), orbDawn: hex(tok('--orb-dawn')),
+    eye: tok('--eye'), pupil: tok('--pupil'),
+    stone: tok('--stone'), stoneDark: tok('--stone-dark'), moss: tok('--moss'),
+    accent: tok('--accent'), edge: tok('--panel-edge'),
+    rocket: tok('--rocket'), rocketRed: tok('--rocket-red'), rocketWindow: tok('--rocket-window'),
+    flame: tok('--flame'), flameCore: tok('--flame-core')
+  };
+  const PAL = [
+    { body: tok('--frog'), dark: tok('--frog-dark'), belly: tok('--belly') },
+    { body: tok('--frog2'), dark: tok('--frog2-dark'), belly: tok('--belly2') }
+  ];
+
+  // ---- DOM ----
+  const $ = id => document.getElementById(id);
+  const stage = $('stage'), board = $('board'), cv = $('cv');
+  const ctx = cv.getContext('2d');
+  const s1 = $('s1'), s2 = $('s2'), l1 = $('l1'), d1 = $('d1'), c2 = $('c2'), cb = $('cb'), bestEl = $('best');
+  const ov = $('ov'), ovTitle = $('ovTitle'), ovText = $('ovText');
+  const b1p = $('b1p'), b2p = $('b2p'), bAgain = $('bAgain'), bMenu = $('bMenu');
+  const aimBtn = $('aim');
+  const btns = [$('bL'), $('bR')];
+  const chevs = btns.map(b => b.querySelector('.chev'));
+  const whos = btns.map(b => b.querySelector('.who'));
+  const lbls = btns.map(b => b.querySelector('.lbl'));
+
+  const reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const rnd = (a, b) => a + Math.random() * (b - a);
+  const lerp = (a, b, t) => a + (b - a) * t;
+
+  // ---- per-viewer conveniences ----
+  let best = 0, aimOn = true;
+  try { best = parseInt(localStorage.getItem('frog-best') || '0', 10) || 0; } catch (e) {}
+  try { aimOn = localStorage.getItem('frog-aim') !== '0'; } catch (e) {}
+  bestEl.textContent = best;
+  aimBtn.setAttribute('aria-pressed', aimOn ? 'true' : 'false');
+
+  // ---- game state ----
+  let mode = 1;                 // 1 or 2 players
+  let state = 'ready';          // ready | play | over
+  let platforms = [], frogs = [];
+  let camY = START_CAM, camTarget = START_CAM;
+  let genY = 0, genCx = W / 2, levelNo = 0, zig = -1, time = 0;
+  const flies = Array.from({ length: 14 }, () => ({ x: rnd(10, W - 10), y0: rnd(0, H), sp: rnd(4, 12), ph: rnd(0, TAU) }));
+
+  function newFrog(x, pal) {
+    return {
+      x: x, y: 0, vx: 0, vy: 0, grounded: true, facing: 1, land: 0,
+      charge: 0, act: null, held: { '-1': false, '0': false, '1': false },
+      next: -1,                 // two-player mode: direction of the next jump
+      mode: 'walk', rk: null, h: 0, alive: true, pal: pal
+    };
+  }
+
+  // ---- level generation ----
+  // Lateral distance a jump covers when it crosses a platform dy above, for the weakest jump that clears it and for a full jump.
+  function lateralWindow(dy) {
+    const cross = v => {
+      const vy = v * COS, disc = vy * vy - 2 * G * dy;
+      if (disc < 0) return 0;
+      return v * SIN * (vy + Math.sqrt(disc)) / G;
+    };
+    const vmin = Math.max(V_MIN, Math.sqrt(2 * G * (dy + 8)) / COS);
+    return [cross(vmin), cross(V_MAX)];
+  }
+
+  function pushPlat(cx, w, i, rocket) {
+    platforms.push({
+      x: wrapX(cx - w / 2), y: genY, w: w, i: i, rocket: rocket, ground: false,
+      t: [rnd(0.12, 0.88), rnd(0.12, 0.88), rnd(0.12, 0.88)]
+    });
+  }
+
+  function addSingle(i, d, two, gap) {
+    let w, dx;
+    if (two) {
+      w = Math.round(rnd(lerp(112, 84, d), lerp(134, 100, d)));
+      const win = lateralWindow(gap);
+      const a = win[0] + 10, b = Math.max(a + 8, win[1] - 25);
+      dx = zig * rnd(a, b);
+      zig = -zig;
+    } else {
+      w = Math.round(rnd(lerp(100, 60, d), lerp(128, 84, d)));
+      dx = rnd(34, 118) * (Math.random() < 0.5 ? -1 : 1);
+    }
+    genCx = wrapX(genCx + dx);
+    pushPlat(genCx, w, i, false);
+  }
+
+  function addPair(i, two, gap) {
+    // same height: a tiny platform with a rocket, and a wider safe platform without one
+    let cs, cr, ws;
+    if (two) {
+      const win = lateralWindow(gap);
+      const a = win[0] + 8, b = win[1] - 24;
+      const near = a + 6, far = b - 4;
+      const rocketFar = Math.random() < 0.5;
+      ws = 70;
+      cr = wrapX(genCx + zig * (rocketFar ? far : near));
+      cs = wrapX(genCx + zig * (rocketFar ? near : far));
+      zig = -zig;
+    } else {
+      const s = Math.random() < 0.5 ? -1 : 1;
+      ws = Math.round(rnd(88, 104));
+      cs = wrapX(genCx + s * rnd(35, 75));
+      cr = wrapX(genCx - s * rnd(75, 118));
+    }
+    pushPlat(cr, 36, i, true);
+    pushPlat(cs, ws, i, false);
+    genCx = cs;                 // the regular route continues from the safe platform
+  }
+
+  function addLevel() {
+    levelNo++;
+    const d = Math.min(1, Math.max(0, -genY) / (PX_PER_M * 60));
+    const two = mode === 2;
+    const pair = levelNo % PAIR_EVERY === 0;
+    const gap = two ? (pair ? 60 : rnd(60, 76 + 14 * d)) : rnd(60, 78 + 22 * d);
+    genY -= gap;
+    if (pair) addPair(levelNo, two, gap); else addSingle(levelNo, d, two, gap);
+  }
+  function ensureLevel() { while (genY > camY - 260) addLevel(); }
+
+  function reset() {
+    platforms = [{ x: 0, y: 0, w: W, i: 0, rocket: false, ground: true, t: [0.15, 0.5, 0.85] }];
+    genY = 0; genCx = W / 2; levelNo = 0; zig = -1;
+    camY = camTarget = START_CAM;
+    frogs = mode === 2 ? [newFrog(W / 2 - 26, PAL[0]), newFrog(W / 2 + 26, PAL[1])] : [newFrog(W / 2, PAL[0])];
+    if (mode === 2) frogs.forEach(f => { f.facing = -1; });
+    refreshHud();
+    ensureLevel();
+  }
+
+  function refreshHud() {
+    s1.textContent = frogs[0] ? frogs[0].h : 0;
+    s2.textContent = frogs[1] ? frogs[1].h : 0;
+  }
+
+  // ---- physics ----
+  function inside(p, x) {
+    for (const o of OFFS) {
+      const xx = x + o;
+      if (xx > p.x - 5 && xx < p.x + p.w + 5) return true;
+    }
+    return false;
+  }
+  function findLanding(py, x, y) {
+    let found = null;
+    for (const p of platforms) {
+      if (py <= p.y + 0.01 && y >= p.y && inside(p, x)) {
+        if (!found || p.y < found.y) found = p;
+      }
+    }
+    return found;
+  }
+
+  function startJump(f, dir, power) {
+    const v = V_MIN + (V_MAX - V_MIN) * Math.max(0, Math.min(1, power));
+    f.vx = dir * v * SIN;
+    f.vy = -v * COS;
+    f.grounded = false;
+    f.facing = dir;
+  }
+
+  function startRocket(f, p) {
+    const lvl = p.i + ROCKET_LEVELS;
+    while (levelNo < lvl) addLevel();
+    const target = platforms.find(q => q.i === lvl);
+    if (!target) return;
+    p.rocket = false;
+    const cx = wrapX(p.x + p.w / 2);
+    const tx = wrapX(target.x + target.w / 2);
+    f.mode = 'rocket'; f.grounded = false; f.vx = f.vy = 0; f.charge = 0;
+    f.x = cx; f.y = p.y - RK_SIT;
+    f.rk = {
+      phase: 'ignite', t: 0, T: 1.1, sx: cx,
+      dx: ((tx - cx + W / 2) % W + W) % W - W / 2,
+      y0: f.y, y1: target.y - RK_SIT, target: target
+    };
+  }
+
+  function stepRocket(f, dt) {
+    const r = f.rk;
+    r.t += dt;
+    if (r.phase === 'ignite') {
+      if (r.t >= 0.5) { r.phase = 'fly'; r.t = 0; }
+    } else if (r.phase === 'fly') {
+      const s = Math.min(1, r.t / r.T);
+      const e = s < 0.5 ? 4 * s * s * s : 1 - Math.pow(-2 * s + 2, 3) / 2;
+      f.y = r.y0 + (r.y1 - r.y0) * e;
+      f.x = wrapX(r.sx + r.dx * e);
+      const h = Math.floor(-(f.y + RK_SIT) / PX_PER_M);
+      if (h > f.h) { f.h = h; refreshHud(); }
+      if (s >= 1) { r.phase = 'drop'; r.t = 0; f.x = wrapX(r.sx + r.dx); }
+    } else {
+      const s = Math.min(1, r.t / 0.16);
+      f.y = r.y1 + (r.target.y - r.y1) * s * s;
+      if (s >= 1) {
+        f.y = r.target.y; f.vx = f.vy = 0; f.grounded = true; f.land = 0.14;
+        f.mode = 'walk'; f.rk = null;
+        const h = Math.floor(-f.y / PX_PER_M);
+        if (h > f.h) { f.h = h; refreshHud(); }
+      }
+    }
+  }
+
+  function stepFrog(f, dt) {
+    if (!f.alive) return;
+    f.land = Math.max(0, f.land - dt);
+    if (f.mode === 'rocket') { stepRocket(f, dt); return; }
+    if (f.grounded) {
+      if (f.act !== null && f.held[f.act]) {
+        f.charge = Math.min(CHARGE_MAX, f.charge + dt);
+        f.facing = f.act !== 0 ? f.act : f.next;
+      }
+      return;
+    }
+    const py = f.y;
+    f.vy += G * dt;
+    f.x = wrapX(f.x + f.vx * dt);
+    f.y += f.vy * dt;
+    if (f.vy > 0) {
+      const p = findLanding(py, f.x, f.y);
+      if (p) {
+        f.y = p.y; f.vx = 0; f.vy = 0; f.grounded = true; f.land = 0.14;
+        const h = Math.floor(-f.y / PX_PER_M);
+        if (h > f.h) { f.h = h; refreshHud(); }
+        if (f.act !== null && !f.held[f.act]) f.act = null;
+        if (p.rocket) startRocket(f, p);
+      }
+    }
+  }
+
+  function update(dt) {
+    if (state !== 'play') return;
+    const n = 2;
+    for (const f of frogs) for (let k = 0; k < n; k++) stepFrog(f, dt / n);
+    let top = Infinity, rocketing = false;
+    for (const f of frogs) {
+      if (!f.alive) continue;
+      top = Math.min(top, f.y);
+      if (f.mode === 'rocket') rocketing = true;
+    }
+    camTarget = Math.min(camTarget, top - 330);
+    camY += (camTarget - camY) * Math.min(1, dt * (rocketing ? 10 : 6));
+    ensureLevel();
+    platforms = platforms.filter(p => p.y - camY < H + 140);
+    for (const f of frogs) {
+      if (f.alive && f.mode === 'walk' && f.y - camY > H + 70) f.alive = false;
+    }
+    if (frogs.some(f => !f.alive)) gameOver();
+  }
+
+  // ---- screens ----
+  function applyMode() {
+    const two = mode === 2;
+    c2.hidden = !two; cb.hidden = two; d1.hidden = !two;
+    l1.textContent = two ? 'שמאל' : 'גובה';
+    btns.forEach((b, i) => {
+      b.classList.toggle('p1', two && i === 0);
+      b.classList.toggle('p2', two && i === 1);
+      whos[i].hidden = !two;
+      if (two) {
+        whos[i].textContent = i === 0 ? 'שחקן שמאלי' : 'שחקן ימני';
+        lbls[i].textContent = 'קפיצה';
+        chevs[i].style.order = 0;
+        chevs[i].classList.add('flip');
+        b.setAttribute('aria-label', whos[i].textContent + ': קפיצה');
+      } else {
+        whos[i].textContent = '';
+        lbls[i].textContent = i === 0 ? 'שמאלה' : 'ימינה';
+        chevs[i].style.order = i === 0 ? 0 : 2;
+        chevs[i].classList.toggle('flip', i === 0);
+        b.setAttribute('aria-label', i === 0 ? 'קפיצה שמאלה' : 'קפיצה ימינה');
+      }
+    });
+  }
+
+  function showOverlay(kind) {
+    const start = kind === 'start';
+    b1p.hidden = b2p.hidden = !start;
+    bAgain.hidden = bMenu.hidden = start;
+    if (start) {
+      ovTitle.textContent = 'צפרדע מטפסת';
+      ovText.textContent = 'לחצו כדי לקפוץ, ככל שמחזיקים יותר הקפיצה חזקה יותר. אין קירות: יוצאים מצד אחד וחוזרים מהצד השני. טיל על פלטפורמה קטנה מעלה עשרה שלבים.';
+    } else if (kind === 'over1') {
+      ovTitle.textContent = 'נפלת!';
+      ovText.textContent = 'הגעת לגובה ' + frogs[0].h + ' מ׳. השיא שלך הוא ' + best + ' מ׳.';
+    } else {
+      const f0 = frogs[0], f1 = frogs[1];
+      let win;
+      if (f0.alive && !f1.alive) win = 0;
+      else if (f1.alive && !f0.alive) win = 1;
+      else win = f0.h === f1.h ? -1 : (f0.h > f1.h ? 0 : 1);
+      ovTitle.textContent = win === -1 ? 'תיקו!' : (win === 0 ? 'השחקן השמאלי ניצח!' : 'השחקן הימני ניצח!');
+      ovText.textContent = 'שמאל: ' + f0.h + ' מ׳. ימין: ' + f1.h + ' מ׳. מי שנופל מחוץ למסך מפסיד.';
+    }
+    ov.hidden = false;
+    try { (start ? b1p : bAgain).focus({ preventScroll: true }); } catch (e) {}
+  }
+
+  function startGame(m) {
+    mode = m;
+    applyMode();
+    reset();
+    state = 'play';
+    ov.hidden = true;
+  }
+  function toMenu() {
+    mode = 1;
+    applyMode();
+    reset();
+    state = 'ready';
+    showOverlay('start');
+  }
+  function gameOver() {
+    state = 'over';
+    for (const f of frogs) {
+      f.held['-1'] = f.held['0'] = f.held['1'] = false; f.act = null; f.charge = 0;
+    }
+    if (mode === 1) {
+      if (frogs[0].h > best) {
+        best = frogs[0].h; bestEl.textContent = best;
+        try { localStorage.setItem('frog-best', String(best)); } catch (e) {}
+      }
+      showOverlay('over1');
+    } else {
+      showOverlay('over2');
+    }
+  }
+
+  b1p.addEventListener('click', () => startGame(1));
+  b2p.addEventListener('click', () => startGame(2));
+  bAgain.addEventListener('click', () => startGame(mode));
+  bMenu.addEventListener('click', toMenu);
+
+  // ---- input ----
+  // slot -1 / 1: the left / right button of a one-player game. slot 0: the single button of a two-player frog.
+  const slotFor = idx => mode === 1 ? [0, idx === 0 ? -1 : 1] : [idx, 0];
+
+  function press(fi, s) {
+    const f = frogs[fi];
+    if (state !== 'play' || !f || !f.alive || f.held[s]) return;
+    f.held[s] = true;
+    if (f.act === null) f.charge = 0;
+    f.act = s;
+  }
+  function release(fi, s) {
+    const f = frogs[fi];
+    if (!f || !f.held[s]) return;
+    f.held[s] = false;
+    if (f.act === s) {
+      if (state === 'play' && f.alive && f.grounded && f.mode === 'walk') {
+        const dir = s !== 0 ? s : f.next;
+        startJump(f, dir, f.charge / CHARGE_MAX);
+        if (s === 0) f.next = -f.next;
+      }
+      f.charge = 0;
+      const other = s === -1 ? 1 : (s === 1 ? -1 : null);
+      f.act = (other !== null && f.held[other]) ? other : null;
+    }
+  }
+  function bind(el, idx) {
+    let cur = null;
+    el.addEventListener('pointerdown', e => {
+      e.preventDefault();
+      try { el.setPointerCapture(e.pointerId); } catch (err) {}
+      el.classList.add('on');
+      cur = slotFor(idx);
+      press(cur[0], cur[1]);
+    });
+    const up = () => {
+      el.classList.remove('on');
+      if (cur) { release(cur[0], cur[1]); cur = null; }
+    };
+    el.addEventListener('pointerup', up);
+    el.addEventListener('pointercancel', up);
+    el.addEventListener('lostpointercapture', up);
+    el.addEventListener('contextmenu', e => e.preventDefault());
+  }
+  bind(btns[0], 0);
+  bind(btns[1], 1);
+
+  const keyIdx = code => {
+    if (code === 'ArrowLeft' || code === 'KeyA') return 0;
+    if (code === 'ArrowRight' || code === (mode === 1 ? 'KeyD' : 'KeyL')) return 1;
+    return -1;
+  };
+  const keyDown = {};
+  window.addEventListener('keydown', e => {
+    const idx = keyIdx(e.code);
+    if (idx < 0 || e.repeat) return;
+    e.preventDefault();
+    const m = slotFor(idx);
+    keyDown[e.code] = m;
+    btns[idx].classList.add('on');
+    press(m[0], m[1]);
+  });
+  window.addEventListener('keyup', e => {
+    const m = keyDown[e.code];
+    if (!m) return;
+    delete keyDown[e.code];
+    btns[keyIdx(e.code)].classList.remove('on');
+    release(m[0], m[1]);
+  });
+  window.addEventListener('blur', () => {
+    btns.forEach(b => b.classList.remove('on'));
+    for (const f of frogs) {
+      f.held['-1'] = f.held['0'] = f.held['1'] = false; f.act = null; f.charge = 0;
+    }
+  });
+
+  aimBtn.addEventListener('click', () => {
+    aimOn = !aimOn;
+    aimBtn.setAttribute('aria-pressed', aimOn ? 'true' : 'false');
+    try { localStorage.setItem('frog-aim', aimOn ? '1' : '0'); } catch (e) {}
+  });
+
+  // ---- sizing ----
+  function fit() {
+    const sw = stage.clientWidth, sh = stage.clientHeight;
+    if (!sw || !sh) return;
+    const w = Math.min(sw, sh * W / H), h = w * H / W;
+    board.style.width = w + 'px';
+    board.style.height = h + 'px';
+    const dpr = Math.min(window.devicePixelRatio || 1, 3);
+    cv.width = Math.round(w * dpr);
+    cv.height = Math.round(h * dpr);
+  }
+  if (window.ResizeObserver) new ResizeObserver(fit).observe(stage);
+  window.addEventListener('resize', fit);
+
+  // ---- drawing ----
+  function rr(x, y, w, h, r) {
+    ctx.beginPath();
+    if (ctx.roundRect) ctx.roundRect(x, y, w, h, r); else ctx.rect(x, y, w, h);
+  }
+  const wrapOffsets = (x, m) => {
+    const a = [0];
+    if (x < m) a.push(W);
+    if (x > W - m) a.push(-W);
+    return a;
+  };
+
+  function trajectory(f, dir, pw) {
+    const v = V_MIN + (V_MAX - V_MIN) * pw;
+    let x = f.x, y = f.y, vx = dir * v * SIN, vy = -v * COS;
+    const pts = [], dt = 1 / 60;
+    for (let i = 0; i < 120; i++) {
+      vy += G * dt;
+      const py = y;
+      x = wrapX(x + vx * dt); y += vy * dt;
+      if (vy > 0) {
+        const p = findLanding(py, x, y);
+        if (p) { pts.push([x, p.y]); break; }
+      }
+      if (i % 5 === 4) pts.push([x, y]);
+      if (y - camY > H + 40) break;
+    }
+    return pts;
+  }
+
+  function drawRocket(x, base, flame, shake) {
+    ctx.save();
+    ctx.translate(x + shake, base - camY);
+    ctx.lineJoin = 'round';
+    if (flame > 0) {
+      ctx.fillStyle = C.flame;
+      ctx.beginPath(); ctx.moveTo(-6, 0); ctx.lineTo(0, flame); ctx.lineTo(6, 0); ctx.closePath(); ctx.fill();
+      ctx.fillStyle = C.flameCore;
+      ctx.beginPath(); ctx.moveTo(-3, 0); ctx.lineTo(0, flame * 0.6); ctx.lineTo(3, 0); ctx.closePath(); ctx.fill();
+    }
+    ctx.fillStyle = C.rocketRed; ctx.strokeStyle = C.edge; ctx.lineWidth = 1.2;
+    ctx.beginPath(); ctx.moveTo(-7, -12); ctx.lineTo(-13, 0); ctx.lineTo(-7, 0); ctx.closePath(); ctx.fill(); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(7, -12); ctx.lineTo(13, 0); ctx.lineTo(7, 0); ctx.closePath(); ctx.fill(); ctx.stroke();
+    const bh = RK_H - 12;
+    ctx.fillStyle = C.rocket;
+    rr(-7, -bh, 14, bh, 3); ctx.fill(); ctx.stroke();
+    ctx.fillStyle = C.rocketRed;
+    ctx.beginPath(); ctx.moveTo(-7, -bh); ctx.lineTo(0, -RK_H); ctx.lineTo(7, -bh); ctx.closePath(); ctx.fill(); ctx.stroke();
+    ctx.fillStyle = C.rocketWindow;
+    ctx.beginPath(); ctx.arc(0, -bh + 9, 3.2, 0, TAU); ctx.fill(); ctx.stroke();
+    ctx.restore();
+  }
+
+  function drawFrogAt(f, x0) {
+    const pal = f.pal;
+    let x = x0, sx = 1, sy = 1, air = false;
+    if (f.mode === 'rocket') {
+      const r = f.rk;
+      let base = f.y + RK_SIT, flame = 0, shake = 0;
+      const t = reduce ? 0 : time;
+      if (r.phase === 'drop') base = r.target.y;
+      else if (r.phase === 'ignite') {
+        const k = Math.min(1, r.t / 0.5);
+        flame = 22 * k * (0.7 + 0.3 * Math.sin(t * 60));
+        shake = Math.sin(t * 80) * 1.2 * k;
+      } else flame = 30 + 6 * Math.sin(t * 50);
+      drawRocket(x, base, flame, shake);
+      x += shake;
+    } else if (f.grounded) {
+      const p = f.act !== null && f.held[f.act] ? f.charge / CHARGE_MAX : 0;
+      const l = f.land / 0.14;
+      sy = 1 - 0.38 * p - 0.22 * l * (1 - p);
+      sx = 1 + 0.22 * p + 0.16 * l;
+    } else {
+      const s = Math.min(Math.abs(f.vy) / 1600, 0.18);
+      sy = 1 + s; sx = 1 - s * 0.5; air = true;
+    }
+    ctx.save();
+    ctx.translate(x, f.y - camY);
+    ctx.scale(f.facing * sx, sy);
+    ctx.fillStyle = pal.dark; ctx.strokeStyle = pal.dark; ctx.lineCap = 'round';
+    if (air) {
+      ctx.lineWidth = 5; ctx.beginPath(); ctx.moveTo(-6, -9); ctx.lineTo(-19, 3); ctx.stroke();
+      ctx.beginPath(); ctx.ellipse(-21, 4, 5, 2.5, 0.4, 0, TAU); ctx.fill();
+      ctx.lineWidth = 4; ctx.beginPath(); ctx.moveTo(8, -8); ctx.lineTo(17, -14); ctx.stroke();
+    } else {
+      ctx.beginPath(); ctx.ellipse(-7, -5, 9, 5.5, -0.25, 0, TAU); ctx.fill();
+      ctx.beginPath(); ctx.ellipse(-2, -1.6, 9, 2.4, 0, 0, TAU); ctx.fill();
+      ctx.lineWidth = 4; ctx.beginPath(); ctx.moveTo(9, -6); ctx.lineTo(12, -1); ctx.stroke();
+    }
+    ctx.fillStyle = pal.body; ctx.lineWidth = 1.5;
+    ctx.beginPath(); ctx.ellipse(0, -11, 13, 10, 0, 0, TAU); ctx.fill(); ctx.stroke();
+    ctx.fillStyle = pal.belly;
+    ctx.beginPath(); ctx.ellipse(3, -8, 8, 5, 0, 0, TAU); ctx.fill();
+    ctx.fillStyle = pal.body;
+    ctx.beginPath(); ctx.ellipse(9, -17, 8, 6.5, 0, 0, TAU); ctx.fill(); ctx.stroke();
+    ctx.fillStyle = C.eye;
+    ctx.beginPath(); ctx.arc(6, -23, 4, 0, TAU); ctx.fill();
+    ctx.beginPath(); ctx.arc(12.5, -23, 4, 0, TAU); ctx.fill();
+    ctx.fillStyle = C.pupil;
+    ctx.beginPath(); ctx.arc(7.3, -23, 1.9, 0, TAU); ctx.fill();
+    ctx.beginPath(); ctx.arc(13.8, -23, 1.9, 0, TAU); ctx.fill();
+    ctx.strokeStyle = pal.dark; ctx.lineWidth = 1.4;
+    ctx.beginPath(); ctx.moveTo(11, -15); ctx.lineTo(16.5, -15.6); ctx.stroke();
+    ctx.restore();
+  }
+
+  function drawPlatform(p, ox) {
+    const sy = p.y - camY, x = p.x + ox;
+    const h = p.ground ? 220 : 14;
+    ctx.fillStyle = C.stone;
+    rr(x, sy, p.w, h, p.ground ? 0 : 4); ctx.fill();
+    if (!p.ground) {
+      ctx.fillStyle = C.stoneDark;
+      ctx.fillRect(x + 2, sy + h - 4, p.w - 4, 3);
+    }
+    ctx.fillStyle = C.moss;
+    rr(x, sy - 1, p.w, 5, 2); ctx.fill();
+    for (const u of p.t) { ctx.beginPath(); ctx.arc(x + p.w * u, sy, 3.2, 0, TAU); ctx.fill(); }
+    if (p.rocket) drawRocket(x + p.w / 2, p.y - 1, 0, 0);
+  }
+
+  function draw() {
+    const k = cv.width / W;
+    ctx.setTransform(k, 0, 0, k, 0, 0);
+    const t = Math.max(0, Math.min(1, -(camY - START_CAM) / (PX_PER_M * 60)));
+
+    const g = ctx.createLinearGradient(0, 0, 0, H);
+    g.addColorStop(0, rgb(mix(C.nightTop, C.dawnTop, t)));
+    g.addColorStop(1, rgb(mix(C.nightBot, C.dawnBot, t)));
+    ctx.fillStyle = g;
+    ctx.fillRect(0, 0, W, H);
+
+    // sun / moon
+    const oc = mix(C.orbNight, C.orbDawn, t);
+    const ox = W * 0.74, oy = 120 - t * 20, or = 24 + t * 10;
+    const glow = ctx.createRadialGradient(ox, oy, or * 0.4, ox, oy, or * 3);
+    glow.addColorStop(0, rgba(oc, 0.35));
+    glow.addColorStop(1, rgba(oc, 0));
+    ctx.fillStyle = glow;
+    ctx.fillRect(ox - or * 3, oy - or * 3, or * 6, or * 6);
+    ctx.fillStyle = rgb(oc);
+    ctx.beginPath(); ctx.arc(ox, oy, or, 0, TAU); ctx.fill();
+
+    // fireflies
+    ctx.fillStyle = C.accent;
+    const tt = reduce ? 0 : time;
+    for (const f of flies) {
+      const sy = (((f.y0 - tt * f.sp - camY * 0.2) % H) + H) % H;
+      const a = (1 - t) * (0.3 + 0.7 * Math.abs(Math.sin(tt * 1.2 + f.ph)));
+      if (a < 0.03) continue;
+      ctx.globalAlpha = a;
+      ctx.beginPath(); ctx.arc(f.x, sy, 1.8, 0, TAU); ctx.fill();
+    }
+    ctx.globalAlpha = 1;
+
+    // platforms (one that crosses the screen edge is drawn on both sides)
+    for (const p of platforms) {
+      const sy = p.y - camY;
+      if (sy > H + 10 || sy < -60) continue;
+      drawPlatform(p, 0);
+      if (p.x + p.w > W) drawPlatform(p, -W);
+    }
+
+    // aim guide
+    if (aimOn && state === 'play') {
+      for (const f of frogs) {
+        if (!f.alive || f.mode !== 'walk' || !f.grounded || f.act === null || !f.held[f.act]) continue;
+        const dir = f.act !== 0 ? f.act : f.next;
+        const pts = trajectory(f, dir, f.charge / CHARGE_MAX);
+        for (let i = 0; i < pts.length; i++) {
+          ctx.globalAlpha = 0.9 - 0.5 * (i / pts.length);
+          ctx.fillStyle = C.eye; ctx.strokeStyle = C.edge; ctx.lineWidth = 1;
+          ctx.beginPath(); ctx.arc(pts[i][0], pts[i][1] - camY, 2.6, 0, TAU); ctx.fill(); ctx.stroke();
+        }
+        ctx.globalAlpha = 1;
+      }
+    }
+
+    for (const f of frogs) {
+      if (!f.alive) continue;
+      for (const o of wrapOffsets(f.x, 26)) drawFrogAt(f, f.x + o);
+    }
+  }
+
+  const lastP = [-1, -1];
+  const lastFlip = [null, null];
+  function updateButtons() {
+    for (let i = 0; i < 2; i++) {
+      const m = slotFor(i), f = frogs[m[0]];
+      let p = 0;
+      if (f && state === 'play' && f.act === m[1] && f.held[m[1]] && f.grounded && f.mode === 'walk') p = f.charge / CHARGE_MAX;
+      const q = Math.round(p * 100) / 100;
+      if (q !== lastP[i]) { lastP[i] = q; btns[i].style.setProperty('--p', q); }
+      if (mode === 2 && f) {
+        const flip = f.next === -1;
+        if (flip !== lastFlip[i]) { lastFlip[i] = flip; chevs[i].classList.toggle('flip', flip); }
+      } else lastFlip[i] = null;
+    }
+  }
+
+  let last = 0;
+  function frame(ts) {
+    const dt = Math.min(0.033, (ts - last) / 1000 || 0);
+    last = ts; time = ts / 1000;
+    update(dt);
+    updateButtons();
+    draw();
+    requestAnimationFrame(frame);
+  }
+
+  fit();
+  toMenu();
+  requestAnimationFrame(frame);
+})();
+</script>
+
+</body>
+</html>
